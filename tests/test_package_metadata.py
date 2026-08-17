@@ -1,4 +1,4 @@
-"""Regression coverage for the 2.0.5 sdist dependency-metadata defect."""
+"""Regression coverage for release package identity and dependency metadata."""
 from __future__ import annotations
 
 import configparser
@@ -18,6 +18,7 @@ pytest.importorskip("wheel", reason="wheel is required for the package release g
 
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_VERSION = "2.0.7"
 EXPECTED_CONSOLE_SCRIPTS = {
     "juno-ledger": "kanban.cli:main",
     "ledger-juno": "kanban.cli:main",
@@ -33,6 +34,13 @@ def wheel_requirements(path: Path) -> list[str]:
         metadata_name = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
         metadata = email.message_from_bytes(archive.read(metadata_name))
     return sorted(metadata.get_all("Requires-Dist", []))
+
+
+def wheel_version(path: Path) -> str:
+    with zipfile.ZipFile(path) as archive:
+        metadata_name = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
+        metadata = email.message_from_bytes(archive.read(metadata_name))
+    return metadata["Version"]
 
 
 def wheel_console_scripts(path: Path) -> dict[str, str]:
@@ -77,3 +85,5 @@ def test_direct_and_sdist_derived_wheels_keep_runtime_dependency(tmp_path: Path)
     assert str(requirement.specifier) == "<0.19,>=0.18.6"
     assert wheel_console_scripts(direct) == EXPECTED_CONSOLE_SCRIPTS
     assert wheel_console_scripts(derived) == EXPECTED_CONSOLE_SCRIPTS
+    assert wheel_version(direct) == EXPECTED_VERSION
+    assert wheel_version(derived) == EXPECTED_VERSION

@@ -16,7 +16,7 @@ Author: Feedback Shell Team
 License: MIT
 """
 
-__version__ = "2.0.6"
+__version__ = "2.0.7"
 __author__ = "Feedback Shell Team"
 
 # Export main classes for easy importing
