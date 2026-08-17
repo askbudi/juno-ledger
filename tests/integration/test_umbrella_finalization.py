@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from kanban.cli import TaskCLI
 from kanban.storage import TaskStorage, UnmetBlockersError
 from tests.integration.test_git_native_fault_concurrency import make_storage
 
@@ -55,6 +56,15 @@ def _sequential_board(storage):
                                    blocked_by=[first.id, second.id],
                                    related_tasks=[first.id, second.id, independent.id])
     return umbrella, first, second, independent
+
+
+def test_umbrella_finalize_is_recognized_by_public_cli(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        TaskCLI().run(["umbrella-finalize", "--help"])
+    assert exc_info.value.code == 0
+    output = capsys.readouterr().out
+    assert "umbrella-finalize [-h]" in output
+    assert "--admission-receipt" in output
 
 
 def test_generic_done_refuses_unmet_blocker_with_zero_partial_writes(tmp_path):

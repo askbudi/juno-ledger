@@ -3220,7 +3220,7 @@ end
                         # Insert right after 'create' command (position 1), before any flags
                         args_to_parse = ['create', stdin_body] + args_to_parse[1:]
                         body_from_implicit_stdin = True
-                elif first_arg.startswith('-') or first_arg not in ['project', 'create', 'search', 'get', 'show', 'update', 'list', 'archive', 'archive-pack', 'archive-search', 'mark', 'merge', 'deps', 'ready', 'order', 'tags', 'completion', '__complete']:
+                elif first_arg.startswith('-') or first_arg not in ['project', 'create', 'search', 'get', 'show', 'update', 'list', 'archive', 'archive-pack', 'archive-search', 'mark', 'umbrella-finalize', 'merge', 'deps', 'ready', 'order', 'tags', 'completion', '__complete']:
                     # No command specified or shortcut syntax with flags
                     # Treat stdin as task body for create
                     if first_arg.startswith('-'):
@@ -3242,7 +3242,7 @@ end
 
             if args_to_parse and len(args_to_parse) > 0 and not args_to_parse[0].startswith('-'):
                 # Check if first argument is not a known command
-                known_commands = ['project', 'create', 'search', 'get', 'show', 'update', 'list', 'archive', 'archive-pack', 'archive-search', 'mark', 'merge', 'deps', 'ready', 'order', 'tags', 'history', 'reconcile', 'doctor', 'cache', 'convert', 'compatibility', 'export-legacy', 'rollback', 'completion', '__complete']
+                known_commands = ['project', 'create', 'search', 'get', 'show', 'update', 'list', 'archive', 'archive-pack', 'archive-search', 'mark', 'umbrella-finalize', 'merge', 'deps', 'ready', 'order', 'tags', 'history', 'reconcile', 'doctor', 'cache', 'convert', 'compatibility', 'export-legacy', 'rollback', 'completion', '__complete']
                 if args_to_parse[0] not in known_commands:
                     # Treat as shortcut: juno-kanban "task body" -> juno-kanban create "task body"
                     args_to_parse = ['create'] + args_to_parse
