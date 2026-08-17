@@ -1,6 +1,6 @@
-# Juno Kanban - Dead Simple Shell Task Manager
+# Juno Ledger — Git-Native Task Management
 
-A Git-native, shell-friendly kanban task manager for developers and LLM workflows. Canonical current state is one safe Markdown/YAML file per task; history is a separate append-only ledger and SQLite is disposable.
+Juno Ledger is a Git-native, shell-friendly task manager for developers and LLM workflows. Canonical current state is one safe Markdown/YAML file per task; history is a separate append-only ledger and SQLite is disposable.
 
 [![Version](https://img.shields.io/badge/version-v2.0.3-blue.svg)](https://pypi.org/project/juno-kanban/)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
@@ -15,38 +15,38 @@ A Git-native, shell-friendly kanban task manager for developers and LLM workflow
 pip install -e .
 
 # Create your first task
-juno-kanban create "Implement user authentication" --tags backend security
+juno-ledger create "Implement user authentication" --tags backend security
 
 # Optional title + body composition
-juno-kanban create --title "Auth" --body "Implement OAuth callback handling"
+juno-ledger create --title "Auth" --body "Implement OAuth callback handling"
 
 # List recent tasks
-juno-kanban list --limit 5
-juno-kanban list --status backlog,in_progress --sort asc   # preserve explicit status order
+juno-ledger list --limit 5
+juno-ledger list --status backlog,in_progress --sort asc   # preserve explicit status order
 
 # Search and filter
-juno-kanban search --status todo --tags backend
-juno-kanban search --status todo --format json             # command-level --format is supported
+juno-ledger search --status todo --tags backend
+juno-ledger search --status todo --format json             # command-level --format is supported
 
 # Aggregate tag usage (optionally by workflow status)
-juno-kanban tags --status todo,in_progress --format table
+juno-ledger tags --status todo,in_progress --format table
 
 # Mark task progress with response (ID can be positional or flag)
-juno-kanban mark in_progress ABC123 --response "Started OAuth integration"
+juno-ledger mark in_progress ABC123 --response "Started OAuth integration"
 
 # Complete with commit hash
-juno-kanban mark done --id ABC123 --response "Auth completed" --commit abc123def
+juno-ledger mark done --id ABC123 --response "Auth completed" --commit abc123def
 
 # Declare dependencies between tasks
-juno-kanban create "Deploy to staging" --blocked-by ABC123
+juno-ledger create "Deploy to staging" --blocked-by ABC123
 
 # Find tasks ready to work on (all blockers resolved)
-juno-kanban ready
-juno-kanban ready --sort asc   # oldest ready tasks first by last_modified
+juno-ledger ready
+juno-ledger ready --sort asc   # oldest ready tasks first by last_modified
 # ready now includes list-like summary counters (Displayed/Total + status breakdown)
 
 # Get safe execution order respecting dependencies
-juno-kanban order --scores
+juno-ledger order --scores
 ```
 
 ## Immutable cold archive packs
@@ -56,15 +56,15 @@ Boards can explicitly move up to 1,000 old terminal tasks at a time from hot Mar
 Archival is never automatic. With owner authorization, a clean Git worktree/index, and durable new report paths outside the repository:
 
 ```bash
-juno-kanban archive-pack plan --status done,archive --older-than 90d --max-tasks 1000 \
+juno-ledger archive-pack plan --status done,archive --older-than 90d --max-tasks 1000 \
   --target-bytes 26214400 --hard-max-bytes 47185920 \
   --report /external/receipts/archive-plan.json
 # Independently review source HEAD, config/policy hashes, selected IDs/revisions, and batches.
-juno-kanban archive-pack create --plan /external/receipts/archive-plan.json \
+juno-ledger archive-pack create --plan /external/receipts/archive-plan.json \
   --report /external/receipts/archive-create.json
-juno-kanban archive-pack doctor
-juno-kanban doctor
-juno-kanban archive-search --tag backend --before 2026-01-01 --limit 20 --projection metadata
+juno-ledger archive-pack doctor
+juno-ledger doctor
+juno-ledger archive-search --tag backend --before 2026-01-01 --limit 20 --projection metadata
 ```
 
 Plans are revision-bound and fail closed when Git/config/reservations/archive inventory or selected task history changes. Sealed packs/manifests must never be edited or appended. Archived IDs stay terminal and globally reserved; create a new hot task related to the archived ID for follow-up work. Production archival, push/deploy, and post-deploy E2E require separate authorization. Receipts contain hashes/IDs/instructions, not duplicated task bodies or responses.
@@ -93,11 +93,11 @@ Cross-project access is disabled by default. Enable only the aliases that the cu
 Register initialized local projects in the single user registry (`~/.juno-kanban/projects.json`) and route any read or write explicitly:
 
 ```bash
-juno-kanban project add juno-code --path /absolute/path/to/juno-code
-juno-kanban project list
-juno-kanban --project juno-code create --body "Issue discovered elsewhere" --tags bug
-juno-kanban --project juno-code list --status todo
-juno-kanban project remove juno-code
+juno-ledger project add juno-code --path /absolute/path/to/juno-code
+juno-ledger project list
+juno-ledger --project juno-code create --body "Issue discovered elsewhere" --tags bug
+juno-ledger --project juno-code list --status todo
+juno-ledger project remove juno-code
 ```
 
 Environment policy has precedence over project config:
@@ -117,10 +117,10 @@ Enabling without an allowlist grants access to nothing. Routing executes the des
 pip install juno-kanban
 ```
 
-After installation, all three commands are available:
-- `juno-kanban` - Main command name
-- `juno-feedback` - Alias (same functionality)
-- `kanban-juno` - Alternative naming
+The preferred command is `juno-ledger`; `ledger-juno` and `jl` are equivalent
+new spellings. Complete backward compatibility is preserved: `juno-kanban`,
+`juno-feedback`, and `kanban-juno` remain registered and route to the same CLI.
+The PyPI distribution stays `juno-kanban`, and the Python import stays `kanban`.
 
 ### Development Mode
 
@@ -138,23 +138,23 @@ pip install -e .
 
 ## Shell Completion (Tab Autocomplete)
 
-`juno-kanban` ships a native completion script generator:
+`juno-ledger` ships a native completion script generator for every command alias:
 
 ```bash
 # One-time test in current shell
-source <(juno-kanban completion bash)
+source <(juno-ledger completion bash)
 
 # Persist for bash
-echo 'source <(juno-kanban completion bash)' >> ~/.bashrc
+echo 'source <(juno-ledger completion bash)' >> ~/.bashrc
 
 # Persist for zsh
-echo 'source <(juno-kanban completion zsh)' >> ~/.zshrc
+echo 'source <(juno-ledger completion zsh)' >> ~/.zshrc
 
 # Fish
-juno-kanban completion fish > ~/.config/fish/completions/juno-kanban.fish
+juno-ledger completion fish > ~/.config/fish/completions/juno-ledger.fish
 ```
 
-After reloading your shell, `juno-kanban c<TAB><TAB>` suggests commands like `create`/`completion`,
+After reloading your shell, `juno-ledger c<TAB><TAB>` suggests commands like `create`/`completion`,
 and command-specific flags/choice values are also suggested (e.g. `list --sort <TAB>`).
 
 ## Core Features
@@ -186,7 +186,7 @@ and command-specific flags/choice values are also suggested (e.g. `list --sort <
 - Umbrella child reconciliation is available only through `umbrella-finalize`. Its sealed `umbrella-admission` receipt must bind the umbrella revision and every child revision and state `task_id`, `owner_id` (the umbrella ID), and `admitted: true` per child. Admitted IDs must exactly equal `blocked_by`; `related_tasks` are never closed. A sealed evidence receipt bound to that umbrella ID and commit is required. Activation updates all task/ledger pairs in one recoverable transaction, and replay emits no additional events
 
 ```bash
-juno-kanban umbrella-finalize UMB123 \
+juno-ledger umbrella-finalize UMB123 \
   --admission-receipt /external/admission.json \
   --evidence-receipt /external/evidence.json --commit abc123 \
   --receipt-file /external/finalization.json
@@ -208,60 +208,60 @@ Operational conversion, rollback, reconciliation, cache, safety, test, and bench
 
 ```bash
 # Basic task creation
-juno-kanban create "Fix authentication bug"
+juno-ledger create "Fix authentication bug"
 
 # With tags and status
-juno-kanban create "Add user profile page" --status todo --tags frontend ui
+juno-ledger create "Add user profile page" --status todo --tags frontend ui
 
 # Using --body flag (both formats work)
-juno-kanban create --body "Implement OAuth" --tags security backend
+juno-ledger create --body "Implement OAuth" --tags security backend
 
 # Optional title merged into body as: title:{title}\n\n{body}
-juno-kanban create --title "OAuth" --body "Implement provider callback validation"
+juno-ledger create --title "OAuth" --body "Implement provider callback validation"
 
 # Read shell-sensitive markdown exactly from a UTF-8 file or stdin
-juno-kanban create --body-file task.md --status todo --tags feature backend
-cat task.md | juno-kanban create --body-file -
+juno-ledger create --body-file task.md --status todo --tags feature backend
+cat task.md | juno-ledger create --body-file -
 
 # Why file/stdin matters: shells expand unquoted backticks and $() before
-# juno-kanban can inspect argv. For quoted literals that survive parsing,
+# Juno Ledger can inspect argv. For quoted literals that survive parsing,
 # create rejects inline backticks, $(), heredoc-like <<, and multiline bodies
 # and asks you to use --body-file PATH or --body-file - instead.
 
 # Trailing quoted body after list flags is supported
-juno-kanban create --status todo --related-tasks ABC123 "Add integration tests for callback flow"
+juno-ledger create --status todo --related-tasks ABC123 "Add integration tests for callback flow"
 ```
 
 ### Searching & Listing
 
 ```bash
 # List recent tasks (sorted by last modified)
-juno-kanban list --limit 10
+juno-ledger list --limit 10
 
 # Search by status
-juno-kanban search --status in_progress
+juno-ledger search --status in_progress
 
 # Search by tags
-juno-kanban search --tags backend --tags security
+juno-ledger search --tags backend --tags security
 
 # Aggregate tag counts across all tasks
-juno-kanban tags
+juno-ledger tags
 
 # Aggregate tag counts only for active work
-juno-kanban tags --status todo,in_progress --format json
-juno-kanban tags --status todo in_progress --format table
+juno-ledger tags --status todo,in_progress --format json
+juno-ledger tags --status todo in_progress --format table
 
 # Search open tasks (no agent response)
-juno-kanban search --open
+juno-ledger search --open
 
 # Search recent tasks
-juno-kanban search --recent --limit 5
+juno-ledger search --recent --limit 5
 
 # Control search sort order by last_modified
-juno-kanban search --status todo --sort asc --limit 5
+juno-ledger search --status todo --sort asc --limit 5
 
 # Multiple conditions (AND logic)
-juno-kanban search --status todo --tags backend --limit 3
+juno-ledger search --status todo --tags backend --limit 3
 ```
 
 `--sort asc|desc` uses one shared contract across `list`, `search`, and `ready`:
@@ -275,38 +275,38 @@ juno-kanban search --status todo --tags backend --limit 3
 
 ```bash
 # Update status (positional or --id both supported)
-juno-kanban update ABC123 --status in_progress
-juno-kanban update --id ABC123 --status in_progress
+juno-ledger update ABC123 --status in_progress
+juno-ledger update --id ABC123 --status in_progress
 
 # Add agent response
-juno-kanban update --id ABC123 --response "Working on OAuth flow"
+juno-ledger update --id ABC123 --response "Working on OAuth flow"
 
 # Replace body/response from files without shell quoting risks
-juno-kanban update ABC123 --body-file task.md
-juno-kanban update ABC123 --response-file response.md
+juno-ledger update ABC123 --body-file task.md
+juno-ledger update ABC123 --response-file response.md
 
 # Set commit hash
-juno-kanban update --id ABC123 --commit abc123def
+juno-ledger update --id ABC123 --commit abc123def
 
 # Update tags
-juno-kanban update ABC123 --tags urgent backend security
+juno-ledger update ABC123 --tags urgent backend security
 ```
 
 ### Mark Command (Streamlined Workflow)
 
 ```bash
 # Mark with required response
-juno-kanban mark todo ABC123 --response "Ready to start"
+juno-ledger mark todo ABC123 --response "Ready to start"
 
 # Mark as done with commit (recommended)
-juno-kanban mark done --id ABC123 --response "Feature completed" --commit abc123
+juno-ledger mark done --id ABC123 --response "Feature completed" --commit abc123
 
 # Read response from a file or stdin, preserving code fences/backticks/$VARIABLES
-juno-kanban mark done --id ABC123 --response-file response.md --commit abc123
-cat response.md | juno-kanban mark done --id ABC123 --response-file -
+juno-ledger mark done --id ABC123 --response-file response.md --commit abc123
+cat response.md | juno-ledger mark done --id ABC123 --response-file -
 
 # Mark without commit (shows helpful reminder)
-juno-kanban mark done ABC123 --response "Bug fixed"
+juno-ledger mark done ABC123 --response "Bug fixed"
 # Output: Consider adding commit hash with --commit flag
 ```
 
@@ -314,32 +314,32 @@ juno-kanban mark done ABC123 --response "Bug fixed"
 
 ```bash
 # Create a task that's blocked by another
-juno-kanban create "Deploy to prod" --blocked-by ABC123
+juno-ledger create "Deploy to prod" --blocked-by ABC123
 
 # Or declare blockers via body markup (auto-parsed)
-juno-kanban create "Run integration tests [blocked_by]ABC123, DEF456[/blocked_by]"
+juno-ledger create "Run integration tests [blocked_by]ABC123, DEF456[/blocked_by]"
 
 # Add/remove dependencies after creation
-juno-kanban deps add --id GHI789 --blocked-by ABC123 DEF456
-juno-kanban deps remove --id GHI789 --blocked-by ABC123
+juno-ledger deps add --id GHI789 --blocked-by ABC123 DEF456
+juno-ledger deps remove --id GHI789 --blocked-by ABC123
 
 # Shorthand add (action inferred when --blocked-by is present)
-juno-kanban deps --id GHI789 --blocked-by ABC123 DEF456
+juno-ledger deps --id GHI789 --blocked-by ABC123 DEF456
 
 # Query dependency info for a task
-juno-kanban deps ABC123
-juno-kanban deps --id ABC123
+juno-ledger deps ABC123
+juno-ledger deps --id ABC123
 # Returns: blockers (met/unmet), dependents, priority score
 
 # Find tasks ready to work on (all blockers resolved)
-juno-kanban ready
-juno-kanban ready --sort asc --limit 5                         # oldest ready tasks first
-juno-kanban ready --status backlog,in_progress --sort desc     # backlog group first, then in_progress
-juno-kanban ready --tag backend --sort desc                    # newest backend-ready tasks first
+juno-ledger ready
+juno-ledger ready --sort asc --limit 5                         # oldest ready tasks first
+juno-ledger ready --status backlog,in_progress --sort desc     # backlog group first, then in_progress
+juno-ledger ready --tag backend --sort desc                    # newest backend-ready tasks first
 
 # Get safe execution order (topological sort)
-juno-kanban order
-juno-kanban order --scores  # includes priority scores
+juno-ledger order
+juno-ledger order --scores  # includes priority scores
 ```
 
 #### Body Markup for Dependencies
@@ -370,33 +370,33 @@ Dependencies and related tasks can be declared inline in the task body:
 
 ```bash
 # Get specific task(s) (includes dependency info)
-juno-kanban get ABC123
-juno-kanban get --id ABC123
-juno-kanban get ABC123 --compact              # related task details are ID-only
-juno-kanban get ABC123 DEF456 --format json   # ordered multi-ID lookup
-juno-kanban show ABC123 DEF456 --format json  # alias
+juno-ledger get ABC123
+juno-ledger get --id ABC123
+juno-ledger get ABC123 --compact              # related task details are ID-only
+juno-ledger get ABC123 DEF456 --format json   # ordered multi-ID lookup
+juno-ledger show ABC123 DEF456 --format json  # alias
 
 # Archive task (preserves data, sets status to archive)
-juno-kanban archive ABC123
-juno-kanban archive --id ABC123
+juno-ledger archive ABC123
+juno-ledger archive --id ABC123
 
 # Preview one sealed merge plan, review it, then apply that exact plan.
-juno-kanban merge /path/to/source/.juno_task --into ./.juno_task \
+juno-ledger merge /path/to/source/.juno_task --into ./.juno_task \
   --dry-run --plan-file /tmp/kanban-merge-plan.json
-juno-kanban merge /path/to/source/.juno_task --into ./.juno_task \
+juno-ledger merge /path/to/source/.juno_task --into ./.juno_task \
   --apply-plan /tmp/kanban-merge-plan.json \
   --receipt-file /tmp/kanban-merge-receipt.json
 
 # Show help
-juno-kanban --help
-juno-kanban COMMAND --help
+juno-ledger --help
+juno-ledger COMMAND --help
 ```
 
 ## Output Formats
 
 ### NDJSON (Default)
 ```bash
-juno-kanban search --status todo
+juno-ledger search --status todo
 ```
 ```json
 {"id": "ABC123", "status": "todo", "body": "Fix bug", "tags": ["backend"]}
@@ -405,7 +405,7 @@ juno-kanban search --status todo
 
 ### JSON (Structured)
 ```bash
-juno-kanban search --status todo --format json
+juno-ledger search --status todo --format json
 # also supported: juno-kanban --format json search --status todo
 ```
 ```json
@@ -417,15 +417,15 @@ juno-kanban search --status todo --format json
 
 ### XML
 ```bash
-juno-kanban search --status todo --format xml
+juno-ledger search --status todo --format xml
 ```
 
 ### Table (Human-readable)
 ```bash
-juno-kanban search --status todo --format table
+juno-ledger search --status todo --format table
 
 # tags command renders markdown table output in table mode
-juno-kanban tags --status todo,in_progress --format table
+juno-ledger tags --status todo,in_progress --format table
 ```
 
 ## Shell Integration
@@ -436,35 +436,35 @@ Perfect integration with `jq` for data processing:
 
 ```bash
 # Extract task IDs
-juno-kanban list | jq -r '.id'
+juno-ledger list | jq -r '.id'
 
 # Filter by specific criteria
-juno-kanban list | jq 'select(.status == "todo")'
+juno-ledger list | jq 'select(.status == "todo")'
 
 # Count tasks by status
-juno-kanban list | jq -r '.status' | sort | uniq -c
+juno-ledger list | jq -r '.status' | sort | uniq -c
 
 # Get tasks with specific tags
-juno-kanban list | jq 'select(.feature_tags[]? == "backend")'
+juno-ledger list | jq 'select(.feature_tags[]? == "backend")'
 
 # Clean data output (suppress summary)
-juno-kanban list 2>/dev/null | jq '.'
+juno-ledger list 2>/dev/null | jq '.'
 ```
 
 ### Automation Examples
 
 ```bash
 # Daily standup - get your current work
-juno-kanban search --status in_progress | jq -r '.body'
+juno-ledger search --status in_progress | jq -r '.body'
 
 # Review completed work with commits
-juno-kanban search --status done | jq -r '"✅ \(.body) (\(.commit_hash // "no commit"))"'
+juno-ledger search --status done | jq -r '"✅ \(.body) (\(.commit_hash // "no commit"))"'
 
 # Find urgent tasks
-juno-kanban search --tags urgent | jq -r '"⚠️  \(.body)"'
+juno-ledger search --tags urgent | jq -r '"⚠️  \(.body)"'
 
 # Git hook integration
-git log -1 --format="%H" | xargs -I {} juno-kanban search --commit {}
+git log -1 --format="%H" | xargs -I {} juno-ledger search --commit {}
 ```
 
 ## Configuration
@@ -549,7 +549,7 @@ Each task is stored in safe YAML front matter plus marker-delimited Markdown bod
 
 ```bash
 # Invalid tag format
-juno-kanban create "Task" --tags "frontend v1"
+juno-ledger create "Task" --tags "frontend v1"
 ```
 ```
 Validation error: Invalid tag format: 'frontend v1'
@@ -568,13 +568,13 @@ Did you mean: 'frontend_v1'?
 
 ```bash
 # Invalid status transition
-juno-kanban update ABC123 --status done  # (current: backlog)
+juno-ledger update ABC123 --status done  # (current: backlog)
 ```
 ```
 Cannot transition from 'backlog' to 'done'.
 Allowed transitions from 'backlog': todo, in_progress, archive
 
-Use: juno-kanban update ABC123 --status todo
+Use: juno-ledger update ABC123 --status todo
 ```
 
 ## Performance
@@ -601,46 +601,46 @@ Use: juno-kanban update ABC123 --status todo
 
 ```bash
 # Morning planning
-juno-kanban create "Review pull requests" --tags review daily
-juno-kanban create "Fix authentication bug" --tags backend urgent --status todo
+juno-ledger create "Review pull requests" --tags review daily
+juno-ledger create "Fix authentication bug" --tags backend urgent --status todo
 
 # Start working
-juno-kanban mark in_progress -ID ABC123 --response "Investigating auth issue"
+juno-ledger mark in_progress -ID ABC123 --response "Investigating auth issue"
 
 # During development
-juno-kanban update ABC123 --response "Found root cause in JWT validation"
+juno-ledger update ABC123 --response "Found root cause in JWT validation"
 
 # Complete work
-juno-kanban mark done -ID ABC123 --response "Fixed JWT expiry handling" --commit abc123
+juno-ledger mark done -ID ABC123 --response "Fixed JWT expiry handling" --commit abc123
 
 # End of day review
-juno-kanban search --status done | jq -r '"✅ \(.body)"'
+juno-ledger search --status done | jq -r '"✅ \(.body)"'
 ```
 
 ### Dependency-Aware Workflow
 
 ```bash
 # Create a pipeline with dependencies
-juno-kanban create "Write unit tests" --tags backend testing --status todo
+juno-ledger create "Write unit tests" --tags backend testing --status todo
 # Returns ID: A1b2C3
 
-juno-kanban create "Implement feature" --blocked-by A1b2C3 --tags backend
+juno-ledger create "Implement feature" --blocked-by A1b2C3 --tags backend
 # Returns ID: D4e5F6
 
-juno-kanban create "Deploy to staging" --blocked-by D4e5F6 --tags devops
+juno-ledger create "Deploy to staging" --blocked-by D4e5F6 --tags devops
 # Returns ID: G7h8I9
 
 # See what's ready to work on
-juno-kanban ready --sort desc
+juno-ledger ready --sort desc
 # Only A1b2C3 shows — the others are blocked (newest ready tasks first)
 
 # Get execution order with priority scores
-juno-kanban order --scores
+juno-ledger order --scores
 # A1b2C3 (score: 2) → D4e5F6 (score: 1) → G7h8I9 (score: 0)
 
 # Complete first task, check what's unblocked
-juno-kanban mark done -ID A1b2C3 --response "Tests written" --commit abc123
-juno-kanban ready --sort asc
+juno-ledger mark done -ID A1b2C3 --response "Tests written" --commit abc123
+juno-ledger ready --sort asc
 # Now D4e5F6 is ready (and asc sort keeps oldest ready tasks first)
 ```
 
@@ -648,13 +648,13 @@ juno-kanban ready --sort asc
 
 ```bash
 # See what teammates are working on
-juno-kanban search --status in_progress | jq -r '"👤 \(.body) - \(.agent_response)"'
+juno-ledger search --status in_progress | jq -r '"👤 \(.body) - \(.agent_response)"'
 
 # Find tasks needing review
-juno-kanban search --status review --tags urgent
+juno-ledger search --status review --tags urgent
 
 # Weekly retrospective
-juno-kanban search --status done | jq 'group_by(.commit_hash) | length'
+juno-ledger search --status done | jq 'group_by(.commit_hash) | length'
 ```
 
 ### Git Integration
@@ -662,11 +662,11 @@ juno-kanban search --status done | jq 'group_by(.commit_hash) | length'
 ```bash
 # Link completed tasks to commits
 git log --oneline | head -5 | while read commit message; do
-  echo "🔗 $commit: $(juno-kanban search --commit $commit | jq -r '.body // "No task linked"')"
+  echo "🔗 $commit: $(juno-ledger search --commit $commit | jq -r '.body // "No task linked"')"
 done
 
 # Pre-commit hook: ensure task exists
-if ! juno-kanban search --status in_progress | grep -q "$(git log -1 --format='%s')"; then
+if ! juno-ledger search --status in_progress | grep -q "$(git log -1 --format='%s')"; then
   echo "⚠️  No in-progress task found for this commit"
 fi
 ```
@@ -688,16 +688,16 @@ pip install -e . --force-reinstall
 **Slow search performance:**
 ```bash
 # Rebuild the disposable query cache at any time
-juno-kanban cache rebuild
+juno-ledger cache rebuild
 ```
 
 **jq parsing errors:**
 ```bash
 # Ensure you're using recent version (v1.3.0+)
-juno-kanban --version
+juno-ledger --version
 
 # Use stderr redirection if needed
-juno-kanban list 2>/dev/null | jq '.'
+juno-ledger list 2>/dev/null | jq '.'
 ```
 
 **Configuration issues:**
@@ -711,7 +711,7 @@ cat .juno_task/tasks/config.json | jq '.'
 
 ### Getting Help
 
-- **CLI Help**: `juno-kanban --help` or `juno-kanban COMMAND --help`
+- **CLI Help**: `juno-ledger --help` or `juno-ledger COMMAND --help`
 - **Issues**: [GitHub Issues](https://github.com/askbudi/juno-ledger/issues)
 - **Storage guide**: See [`docs/git-native-storage.md`](docs/git-native-storage.md)
 

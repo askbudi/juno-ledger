@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for kanban task manager.
+Setup script for Juno Ledger.
 
 This package provides Git-native per-task Markdown storage, append-only history,
 a disposable query cache, and an LLM-optimized interface.
@@ -28,7 +28,7 @@ def read_readme():
     if os.path.exists(readme_path):
         with open(readme_path, 'r', encoding='utf-8') as f:
             return f.read()
-    return "A Git-native kanban task manager with safe per-task Markdown storage."
+    return "Juno Ledger: Git-native task management with safe per-task Markdown storage."
 
 # Runtime dependency metadata must be self-contained in the build script.  The
 # 2.0.5 sdist omitted requirements.txt, causing sdist-derived wheels to silently
@@ -40,7 +40,7 @@ setup(
     version=read_version(),
     author="Juno AI",
     author_email="support@juno.ai",
-    description="A Git-native kanban task manager with safe per-task Markdown storage",
+    description="Juno Ledger: Git-native task management with safe per-task Markdown storage",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/askbudi/juno-ledger",
@@ -65,6 +65,9 @@ setup(
     install_requires=RUNTIME_REQUIREMENTS,
     entry_points={
         "console_scripts": [
+            "juno-ledger=kanban.cli:main",
+            "ledger-juno=kanban.cli:main",
+            "jl=kanban.cli:main",
             "juno-kanban=kanban.cli:main",
             "juno-feedback=kanban.cli:main",
             "kanban-juno=kanban.cli:main",
@@ -79,6 +82,6 @@ setup(
         "Source": "https://github.com/askbudi/juno-ledger",
         "Documentation": "https://github.com/askbudi/juno-ledger#readme",
     },
-    keywords="kanban task-manager cli markdown git sqlite productivity",
+    keywords="ledger kanban task-manager cli markdown git sqlite productivity",
     zip_safe=False,
 )

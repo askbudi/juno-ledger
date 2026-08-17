@@ -17,14 +17,27 @@ with tempfile.TemporaryDirectory() as temporary:
     venv = temp / "venv"
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
     python = venv / "bin/python"
-    executable = venv / "bin/juno-kanban"
     subprocess.run([str(python), "-m", "pip", "install", "--no-index", "--find-links", str(dist), str(wheel)], check=True)
     probe = subprocess.check_output([
         str(python), "-c",
         "import json,kanban.cache,kanban.codec,kanban.ledger,kanban.storage; "
         "print(json.dumps({'modules': True}))",
     ], text=True)
-    help_result = subprocess.run([str(executable), "--help"], text=True, capture_output=True, check=True)
+    command_names = ("juno-ledger", "ledger-juno", "jl", "juno-kanban", "juno-feedback", "kanban-juno")
+    executables = [venv / "bin" / name for name in command_names]
+    assert all(executable.is_file() for executable in executables)
+    help_results = [
+        subprocess.run([str(executable), "--help"], text=True, capture_output=True, check=True)
+        for executable in executables
+    ]
+    assert all("Juno Ledger task manager" in result.stdout for result in help_results)
+    version_results = [
+        subprocess.check_output([str(executable), "--version"], text=True).strip()
+        for executable in executables
+    ]
+    assert len(set(version_results)) == 1
+    executable = executables[0]
+    help_result = help_results[0]
     assert all(command in help_result.stdout for command in
                ("convert", "compatibility", "archive-pack", "archive-search"))
     archive_help = subprocess.run([str(executable), "archive-pack", "--help"], text=True,
@@ -52,5 +65,5 @@ with tempfile.TemporaryDirectory() as temporary:
     assert "incomplete archive artifact triplet" in doctor.stdout
     assert "missing pack, checksum" in doctor.stdout
     print(json.dumps({"wheel": wheel.name, "import_probe": json.loads(probe),
-                      "entry_point": True, "archive_public_help": True,
+                      "entry_points": list(command_names), "archive_public_help": True,
                       "exact_option_refusals": 4, "incomplete_triplet_doctor": True}))

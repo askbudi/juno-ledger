@@ -29,7 +29,7 @@ class TestCompletionCommand:
         output = stdout.getvalue()
         assert '__complete --index "$COMP_CWORD"' in output
         assert 'complete -o default -F' in output
-        assert 'juno-kanban juno-feedback kanban-juno' in output
+        assert 'juno-ledger ledger-juno jl juno-kanban juno-feedback kanban-juno' in output
         assert not (Path(tmp_path) / '.juno_task').exists()
 
     def test_internal_complete_suggests_top_level_commands(self):

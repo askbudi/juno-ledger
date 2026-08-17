@@ -74,7 +74,7 @@ class Config:
             "status": "Available statuses: backlog, todo, in_progress, done, archive",
             "tags": "Tags can be any alphanumeric string with underscores/hyphens (max 50 chars, max 20 per task)",
             "workflow": "Workflow: backlog → todo → in_progress → done → archive",
-            "general": "Shell-based kanban task manager"
+            "general": "Juno Ledger shell-based task manager"
         },
         "error_messages": {
             "invalid_status": "Error: Invalid status '{status}'. Allowed: {allowed_values}",

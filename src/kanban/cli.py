@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Task Manager CLI - Complete Implementation
-NDJSON-based Kanban task manager optimized for LLM usage.
+Juno Ledger CLI - Complete Implementation
+Git-native task manager optimized for shell and LLM usage.
 """
 
 import sys
@@ -31,6 +31,12 @@ from .project_registry import (
 from .archive import (DEFAULT_HARD_MAX_BYTES, DEFAULT_MAX_RECORDS,
                       DEFAULT_TARGET_BYTES, archive_doctor, create_archive, plan_archive)
 from . import __version__
+
+
+CONSOLE_COMMAND_NAMES = (
+    'juno-ledger', 'ledger-juno', 'jl',
+    'juno-kanban', 'juno-feedback', 'kanban-juno',
+)
 
 
 # Exit codes
@@ -162,7 +168,7 @@ class TaskCLI:
 
     def _get_command_name(self) -> str:
         """
-        Detect the command name being used (juno-kanban, juno-feedback, or task).
+        Detect the Juno Ledger command name being used.
 
         Returns:
             The command name as it appears in sys.argv[0]
@@ -175,7 +181,7 @@ class TaskCLI:
         command_name = os.path.basename(command_path)
 
         # Handle different scenarios
-        if command_name in ['juno-kanban', 'juno-feedback', 'kanban-juno']:
+        if command_name in CONSOLE_COMMAND_NAMES:
             return command_name
         elif command_name.endswith('.py'):
             # Direct Python execution, use 'task' as fallback
@@ -191,13 +197,13 @@ class TaskCLI:
         Returns:
             Configured ArgumentParser
         """
-        # Detect the command name being used (juno-kanban, juno-feedback, or task)
+        # Detect the Juno Ledger command name being used.
         command_name = self._get_command_name()
 
         # Main parser
         parser = argparse.ArgumentParser(
             prog=command_name,
-            description='Task manager. Use without arguments for full command reference.',
+            description='Juno Ledger task manager. Use without arguments for full command reference.',
             epilog=f'Use "{command_name} COMMAND --help" for more information on a specific command',
             formatter_class=argparse.RawDescriptionHelpFormatter,
             allow_abbrev=False,
@@ -2789,6 +2795,7 @@ class TaskCLI:
     def _generate_bash_completion_script(self) -> str:
         """Generate bash completion script."""
         command_name = self._get_command_name()
+        command_names = ' '.join(CONSOLE_COMMAND_NAMES)
 
         return f'''# bash completion for {command_name}
 _{command_name.replace('-', '_')}_completion() {{
@@ -2803,14 +2810,15 @@ _{command_name.replace('-', '_')}_completion() {{
   COMPREPLY=($(compgen -W "$suggestions" -- "$cur"))
 }}
 
-complete -o default -F _{command_name.replace('-', '_')}_completion juno-kanban juno-feedback kanban-juno
+complete -o default -F _{command_name.replace('-', '_')}_completion {command_names}
 '''
 
     def _generate_zsh_completion_script(self) -> str:
         """Generate zsh completion script via bashcompinit for portability."""
         command_name = self._get_command_name()
+        command_names = ' '.join(CONSOLE_COMMAND_NAMES)
 
-        return f'''#compdef juno-kanban juno-feedback kanban-juno
+        return f'''#compdef {command_names}
 # zsh completion for {command_name}
 autoload -U +X bashcompinit && bashcompinit
 _{command_name.replace('-', '_')}_completion() {{
@@ -2825,12 +2833,16 @@ _{command_name.replace('-', '_')}_completion() {{
   COMPREPLY=($(compgen -W "$suggestions" -- "$cur"))
 }}
 
-complete -o default -F _{command_name.replace('-', '_')}_completion juno-kanban juno-feedback kanban-juno
+complete -o default -F _{command_name.replace('-', '_')}_completion {command_names}
 '''
 
     def _generate_fish_completion_script(self) -> str:
         """Generate fish completion script."""
         command_name = self._get_command_name()
+        completions = '\n'.join(
+            f'complete -c {name} -f -a "(__{command_name.replace("-", "_")}_complete)"'
+            for name in CONSOLE_COMMAND_NAMES
+        )
 
         return f'''# fish completion for {command_name}
 function __{command_name.replace('-', '_')}_complete
@@ -2841,9 +2853,7 @@ function __{command_name.replace('-', '_')}_complete
     {command_name} __complete --index $idx -- $tokens "$cur" 2>/dev/null
 end
 
-complete -c juno-kanban -f -a "(__{command_name.replace('-', '_')}_complete)"
-complete -c juno-feedback -f -a "(__{command_name.replace('-', '_')}_complete)"
-complete -c kanban-juno -f -a "(__{command_name.replace('-', '_')}_complete)"
+{completions}
 '''
 
     def cmd_history(self, args: argparse.Namespace) -> int:

@@ -1,13 +1,18 @@
-# Git-native storage operations
+# Juno Ledger Git-native storage operations
 
-Canonical current state is `.juno_task/tasks/<case-sensitive-prefix>/<ID>.md`. Segmented hash-chained history is under `.juno_task/ledger/`; `.juno_task/cache/` and `.juno_task/locks/` are ignored per-worktree state. Runtime commands never scan or write legacy `backlog.ndjson`.
+Juno Ledger's canonical current state is `.juno_task/tasks/<case-sensitive-prefix>/<ID>.md`. Segmented hash-chained history is under `.juno_task/ledger/`; `.juno_task/cache/` and `.juno_task/locks/` are ignored per-worktree state. Runtime commands never scan or write legacy `backlog.ndjson`.
+
+Examples use the preferred `juno-ledger` executable. The legacy
+`juno-kanban`, `juno-feedback`, and `kanban-juno` commands remain fully
+supported, as do the `juno-kanban` distribution name and existing storage,
+configuration, environment-variable, receipt, and migration identifiers.
 
 ## Conversion and rollback
 
 Dry-run validates every row and semantic hash without activation:
 
 ```bash
-juno-kanban convert .juno_task/backlog.ndjson --dry-run --report /receipts/conversion-dry-run.json
+juno-ledger convert .juno_task/backlog.ndjson --dry-run --report /receipts/conversion-dry-run.json
 ```
 
 Historical v1 rows may omit `blocked_by` or `related_tasks`; v2 materializes either empty state as null. Conversion treats only omitted-versus-null as semantically equivalent and still preserves real dependency/link lists and strictly compares every other field. The regression fixture `test_conversion_dry_run_accepts_legacy_related_tasks_nullability` covers omitted, explicit-null, and non-empty related-task states plus the sealed dry-run receipt. It prevents a valid old board from failing at its first pre-link-schema row while enforcing one lossless current-state meaning. Validate with:
@@ -22,7 +27,7 @@ Canonical task files remain LF-only. Legacy body CR/CRLF disposition is an expli
 Production activation has no dirty/force path. It requires a clean task-storage tree, a named tag resolving to current HEAD, an external backup destination, the exact retained legacy wheel, the executing new package version, a checksummed installed-public-CLI 140k benchmark, and an external receipt path:
 
 ```bash
-juno-kanban convert .juno_task/backlog.ndjson \
+juno-ledger convert .juno_task/backlog.ndjson \
   --pre-cutover-tag juno-kanban-precutover-20260722 \
   --backup-path /verified-external-backups/juno \
   --legacy-package /release-assets/juno_kanban-1.42.0-py3-none-any.whl \
@@ -36,7 +41,7 @@ The command itself verifies the freeze, tag, source/config identity, wheel ident
 Before any later mutation, immediate rollback accepts only that machine-generated conversion receipt. It verifies the receipt, committed cutover metadata, exact tag/parent/cutover ancestry, clean unchanged HEAD, and then creates a normal Git revert commit:
 
 ```bash
-juno-kanban rollback immediate \
+juno-ledger rollback immediate \
   --conversion-receipt /receipts/conversion.json \
   --report /receipts/immediate-rollback.json
 ```
@@ -44,7 +49,7 @@ juno-kanban rollback immediate \
 After writes, rollback is executable rather than instructions-only. It freezes current writes, losslessly exports current Markdown, archives and checksums the complete task/ledger extension state outside Git, installs the exact legacy wheel into a fresh external venv without an index, and runs machine-parsed list/get/search/ready/dependency/status-summary parity. Only then does it activate NDJSON, the legacy config, exact-runtime identity, and an executable `kanban-runtime` launcher in one rollback commit. The external receipt records source/rollback commits, every artifact hash, package/entrypoint identity, and command result hash:
 
 ```bash
-juno-kanban rollback post-write \
+juno-ledger rollback post-write \
   --legacy-wheel /release-assets/juno_kanban-1.42.0-py3-none-any.whl \
   --legacy-runtime-dir /rollback/runtime-1.42.0 \
   --archive /rollback/extensions.tar.gz \
@@ -58,7 +63,7 @@ Archive/report paths must be new and outside the repository. Unsupported current
 Acceptance can be generated only after the configured end instant has actually elapsed. It requires exactly the conversion, mutation-conflict, reconciliation, cache-parity, real-worktree-merge, privacy, installed-CLI performance, and executable rollback-rehearsal artifacts. Each artifact is content-addressed; current gates must identify machine commands, exit/output hashes, current commit/config/snapshot, active window, and non-future completion time.
 
 ```bash
-juno-kanban compatibility accept \
+juno-ledger compatibility accept \
   --evidence conversion_parity=/receipts/conversion.json \
   --evidence mutation_conflicts=/receipts/mutation-conflicts.json \
   --evidence reconciliation=/receipts/reconciliation.json \
@@ -68,7 +73,7 @@ juno-kanban compatibility accept \
   --evidence performance=/receipts/installed-cli-140k.json \
   --evidence rollback_rehearsal=/receipts/rollback-rehearsal.json \
   --report /receipts/seven-day-acceptance.json
-juno-kanban compatibility lift \
+juno-ledger compatibility lift \
   --acceptance-receipt /receipts/seven-day-acceptance.json \
   --report /receipts/window-lift.json
 ```
@@ -78,12 +83,12 @@ Lift rechecks elapsed time, current HEAD/config/current-state hash, and every bo
 ## Integrity, cache, and receipts
 
 ```bash
-juno-kanban reconcile --check
-juno-kanban reconcile
-juno-kanban doctor
-juno-kanban cache rebuild
-juno-kanban history TASKID --limit 20
-juno-kanban update TASKID --status done --receipt-file /receipts/update.json
+juno-ledger reconcile --check
+juno-ledger reconcile
+juno-ledger doctor
+juno-ledger cache rebuild
+juno-ledger history TASKID --limit 20
+juno-ledger update TASKID --status done --receipt-file /receipts/update.json
 ```
 
 Mutations lock one task, compare optional `--expected-revision`, atomically replace current state first, append a ledger event, verify persistence, and refresh the disposable cache. Lock waits are bounded by `JUNO_KANBAN_LOCK_TIMEOUT_SECONDS` (default 5 seconds) and timeout errors name the resource and recorded owner; no timeout kills a producer after it acquires the lock. Create/update/mark/archive can emit complete task-scoped receipts. If ledger/cache work is interrupted, canonical current state wins and the next mutation/reconcile converges.
@@ -103,13 +108,13 @@ Do not automate archival, use force/lossy flags, edit sealed files, or reopen/re
 ## Query and output safety
 
 ```bash
-juno-kanban search --field customer=enterprise
-juno-kanban search --field-before due_date=2026-08-01
-juno-kanban search --overdue
-juno-kanban list --projection metadata --fields id,status,last_modified
-juno-kanban list --full
-juno-kanban list --limit 20 --offset 20
-juno-kanban list --limit 20 --show-cursor  # opt-in; pass the emitted value with --cursor
+juno-ledger search --field customer=enterprise
+juno-ledger search --field-before due_date=2026-08-01
+juno-ledger search --overdue
+juno-ledger list --projection metadata --fields id,status,last_modified
+juno-ledger list --full
+juno-ledger list --limit 20 --offset 20
+juno-ledger list --limit 20 --show-cursor  # opt-in; pass the emitted value with --cursor
 ```
 
 Broad outputs default to bounded, configured-pattern/credential/email-redacted summaries before every renderer. Exact-ID `get` remains the full retrieval path. JSON and decoded task mappings emit known fields in the stable order `id`, `status`, `body`, `created_date`, `last_modified`, then remaining core/schema/extension fields. Canonical YAML uses the same applicable order while body/response remain in their lossless Markdown sections; YAML input remains order-independent.

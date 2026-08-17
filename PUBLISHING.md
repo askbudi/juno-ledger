@@ -1,6 +1,6 @@
-# PyPI Publishing Guide for juno-kanban
+# Juno Ledger PyPI Publishing Guide
 
-This document provides complete instructions for building and publishing the juno-kanban package to PyPI.
+This document provides complete instructions for building and publishing Juno Ledger. The established PyPI distribution name remains `juno-kanban` for backward compatibility.
 
 ## Quick Start
 
@@ -145,9 +145,9 @@ Test the uploaded package:
 pip install --index-url https://test.pypi.org/simple/ juno-kanban
 
 # Test basic functionality
-juno-kanban --help
-juno-kanban create "Test task"
-juno-kanban list
+juno-ledger --help
+juno-ledger create "Test task"
+juno-ledger list
 ```
 
 ### Step 4: Publish to PyPI
@@ -257,10 +257,12 @@ pip install dist/juno_kanban-0.1.0-py3-none-any.whl # Local wheel
 
 ## Package Information
 
-- **Package Name**: `juno-kanban`
-- **Entry Points**: `juno-kanban`, `juno-feedback`, `kanban-juno`
+- **Product Name**: Juno Ledger
+- **Package Name**: `juno-kanban` (compatibility identity)
+- **Preferred Entry Points**: `juno-ledger`, `ledger-juno`, `jl`
+- **Legacy Entry Points**: `juno-kanban`, `juno-feedback`, `kanban-juno`
 - **Python Versions**: 3.8+
-- **Dependencies**: None (pure stdlib)
+- **Dependencies**: `ruamel.yaml>=0.18.6,<0.19`
 - **License**: MIT
 - **Repository**: https://github.com/askbudi/juno-ledger
 

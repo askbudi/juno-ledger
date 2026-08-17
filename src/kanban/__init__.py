@@ -1,7 +1,8 @@
 """
-Kanban Task Manager
+Juno Ledger
 
-A Git-native, shell-friendly kanban task manager.
+A Git-native, shell-friendly task manager. The Python package remains named
+``kanban`` for backward compatibility.
 
 Main features:
 - One safe Markdown/YAML current-state file per task
