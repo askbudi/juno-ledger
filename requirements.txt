@@ -1,0 +1,13 @@
+# juno-kanban dependencies
+#
+# Runtime dependencies are declared once in setup.py so direct wheels and
+# sdist-derived wheels receive identical metadata. Normal `pip install .`
+# installs them automatically; this file is development-only.
+
+# Optional dependencies for enhanced performance:
+# ripgrep - for 10-50x faster search performance (install separately)
+
+# Development and publishing dependencies (not included in package):
+# setuptools>=45.0.0  # For building distributions
+# wheel>=0.36.0       # For building wheel distributions
+# twine>=3.4.0        # For uploading to PyPI

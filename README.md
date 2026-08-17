@@ -1,0 +1,811 @@
+# Juno Kanban - Dead Simple Shell Task Manager
+
+A Git-native, shell-friendly kanban task manager for developers and LLM workflows. Canonical current state is one safe Markdown/YAML file per task; history is a separate append-only ledger and SQLite is disposable.
+
+[![Version](https://img.shields.io/badge/version-v2.0.3-blue.svg)](https://pypi.org/project/juno-kanban/)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Shell](https://img.shields.io/badge/shell-friendly-green.svg)](#shell-integration)
+[![jq](https://img.shields.io/badge/jq-compatible-orange.svg)](#jq-integration)
+
+## Quick Start
+
+```bash
+# Install in development mode
+pip install -e .
+
+# Create your first task
+juno-kanban create "Implement user authentication" --tags backend security
+
+# Optional title + body composition
+juno-kanban create --title "Auth" --body "Implement OAuth callback handling"
+
+# List recent tasks
+juno-kanban list --limit 5
+juno-kanban list --status backlog,in_progress --sort asc   # preserve explicit status order
+
+# Search and filter
+juno-kanban search --status todo --tags backend
+juno-kanban search --status todo --format json             # command-level --format is supported
+
+# Aggregate tag usage (optionally by workflow status)
+juno-kanban tags --status todo,in_progress --format table
+
+# Mark task progress with response (ID can be positional or flag)
+juno-kanban mark in_progress ABC123 --response "Started OAuth integration"
+
+# Complete with commit hash
+juno-kanban mark done --id ABC123 --response "Auth completed" --commit abc123def
+
+# Declare dependencies between tasks
+juno-kanban create "Deploy to staging" --blocked-by ABC123
+
+# Find tasks ready to work on (all blockers resolved)
+juno-kanban ready
+juno-kanban ready --sort asc   # oldest ready tasks first by last_modified
+# ready now includes list-like summary counters (Displayed/Total + status breakdown)
+
+# Get safe execution order respecting dependencies
+juno-kanban order --scores
+```
+
+## Immutable cold archive packs
+
+Boards can explicitly move up to 1,000 old terminal tasks at a time from hot Markdown/ledger files into bounded, immutable NDJSON packs. Default `list`, `search`, `ready`, and `order` remain hot-only; exact `get ID` and `history ID` transparently verify and read either tier. Existing `archive ID` still only changes status.
+
+Archival is never automatic. With owner authorization, a clean Git worktree/index, and durable new report paths outside the repository:
+
+```bash
+juno-kanban archive-pack plan --status done,archive --older-than 90d --max-tasks 1000 \
+  --target-bytes 26214400 --hard-max-bytes 47185920 \
+  --report /external/receipts/archive-plan.json
+# Independently review source HEAD, config/policy hashes, selected IDs/revisions, and batches.
+juno-kanban archive-pack create --plan /external/receipts/archive-plan.json \
+  --report /external/receipts/archive-create.json
+juno-kanban archive-pack doctor
+juno-kanban doctor
+juno-kanban archive-search --tag backend --before 2026-01-01 --limit 20 --projection metadata
+```
+
+Plans are revision-bound and fail closed when Git/config/reservations/archive inventory or selected task history changes. Sealed packs/manifests must never be edited or appended. Archived IDs stay terminal and globally reserved; create a new hot task related to the archived ID for follow-up work. Production archival, push/deploy, and post-deploy E2E require separate authorization. Receipts contain hashes/IDs/instructions, not duplicated task bodies or responses.
+
+Scale evidence is generated only through the installed public commands:
+
+```bash
+python3 scripts/benchmark_cold_archive.py --tasks 10000 --report evidence/cold-archive-10k.json
+python3 scripts/benchmark_cold_archive.py --tasks 100000 --report evidence/cold-archive-100k.json
+python3 scripts/verify_wheel_install.py
+```
+
+## Opt-in cross-project registry
+
+Cross-project access is disabled by default. Enable only the aliases that the current source project may reach in `.juno_task/config.json`:
+
+```json
+{
+  "kanbanRegistry": {
+    "enabled": true,
+    "allowedProjects": ["juno-code", "convert-if-chat"]
+  }
+}
+```
+
+Register initialized local projects in the single user registry (`~/.juno-kanban/projects.json`) and route any read or write explicitly:
+
+```bash
+juno-kanban project add juno-code --path /absolute/path/to/juno-code
+juno-kanban project list
+juno-kanban --project juno-code create --body "Issue discovered elsewhere" --tags bug
+juno-kanban --project juno-code list --status todo
+juno-kanban project remove juno-code
+```
+
+Environment policy has precedence over project config:
+
+```bash
+export JUNO_KANBAN_REGISTRY_ENABLED=true
+export JUNO_KANBAN_REGISTRY_ALLOWED_PROJECTS=juno-code,convert-if-chat
+```
+
+Enabling without an allowlist grants access to nothing. Routing executes the destination project's `.juno_task/scripts/kanban.sh`, so its controller, `.venv_juno`, compatibility checks, stdin rules, and write guards remain authoritative. Missing, stale, malformed, disallowed, or recursive routes fail without falling back to the source board. This backing destination-wrapper boundary matters because selecting a foreign storage path with the caller runtime could bypass project-specific safety. Two-project subprocess tests verify the implementation preserves exact stdin and reaches only the selected target.
+
+## Installation
+
+### PyPI (Recommended)
+
+```bash
+pip install juno-kanban
+```
+
+After installation, all three commands are available:
+- `juno-kanban` - Main command name
+- `juno-feedback` - Alias (same functionality)
+- `kanban-juno` - Alternative naming
+
+### Development Mode
+
+```bash
+git clone https://github.com/askbudi/juno-ledger.git
+cd juno-ledger
+pip install -e .
+```
+
+### Requirements
+
+- Python 3.8+
+- Runtime dependency `ruamel.yaml>=0.18.6,<0.19` is installed automatically
+  for safe round-trip YAML that preserves comments and ordering
+
+## Shell Completion (Tab Autocomplete)
+
+`juno-kanban` ships a native completion script generator:
+
+```bash
+# One-time test in current shell
+source <(juno-kanban completion bash)
+
+# Persist for bash
+echo 'source <(juno-kanban completion bash)' >> ~/.bashrc
+
+# Persist for zsh
+echo 'source <(juno-kanban completion zsh)' >> ~/.zshrc
+
+# Fish
+juno-kanban completion fish > ~/.config/fish/completions/juno-kanban.fish
+```
+
+After reloading your shell, `juno-kanban c<TAB><TAB>` suggests commands like `create`/`completion`,
+and command-specific flags/choice values are also suggested (e.g. `list --sort <TAB>`).
+
+## Core Features
+
+### 🗂️ **Git-Native Storage**
+- Stable `.juno_task/tasks/<prefix>/<ID>.md` files with safe round-trip YAML and hidden Markdown boundaries
+- Per-task locks/CAS receipts and segmented, hash-chained ledgers under `.juno_task/ledger/`
+- Different-task worktree changes merge independently; status updates never rename files
+
+### 🔍 **Disposable Cached Search**
+- Rebuildable `.juno_task/cache/kanban.sqlite3` index; canonical Markdown remains authoritative
+- Core/tag/body filters plus typed custom fields, date ranges, and `--overdue`
+- Bounded/redacted broad output with explicit `metadata`, `summary`, and audited `full` projections
+
+### 🏷️ **Flexible Organization**
+- Configurable status workflows (backlog → todo → done)
+- Feature tags for categorization
+- `tags` command for per-tag workload counts (supports status filtering + machine-readable formats)
+- Commit hash linking for git integration
+
+### 🔗 **Task Dependencies**
+- Declare blockers with `--blocked-by` or body markup (`[blocked_by]ID[/blocked_by]`)
+- Declare non-blocking related references with `[task_id]...[/task_id]` or `## ID1 ID2 ##`
+- Cycle detection prevents circular dependencies
+- `ready` command finds unblocked tasks for parallel execution
+- `order` command returns topological sort for safe scheduling
+- Priority scoring ranks tasks by how much downstream work they unblock
+- Every generic mutation to `done` is refused before any task/ledger write when a declared blocker is missing or non-terminal; reopening a resolved blocker is likewise refused when it would block a completed dependent
+- Umbrella child reconciliation is available only through `umbrella-finalize`. Its sealed `umbrella-admission` receipt must bind the umbrella revision and every child revision and state `task_id`, `owner_id` (the umbrella ID), and `admitted: true` per child. Admitted IDs must exactly equal `blocked_by`; `related_tasks` are never closed. A sealed evidence receipt bound to that umbrella ID and commit is required. Activation updates all task/ledger pairs in one recoverable transaction, and replay emits no additional events
+
+```bash
+juno-kanban umbrella-finalize UMB123 \
+  --admission-receipt /external/admission.json \
+  --evidence-receipt /external/evidence.json --commit abc123 \
+  --receipt-file /external/finalization.json
+```
+
+### 🤖 **LLM & Shell Optimized**
+- jq-compatible output for automation
+- Educational error messages with examples
+- Context-aware help text
+- Flexible task ID input (`TASK_ID` positional or `--id/--ID` on key commands)
+- Agent-friendly create/deps parsing (`--title`, flag-only `deps --id ... --blocked-by ...`, trailing quoted body recovery)
+- Clean, parseable formats
+
+Operational conversion, rollback, reconciliation, cache, safety, test, and benchmark contracts are documented in [`docs/git-native-storage.md`](docs/git-native-storage.md).
+
+## Usage Guide
+
+### Creating Tasks
+
+```bash
+# Basic task creation
+juno-kanban create "Fix authentication bug"
+
+# With tags and status
+juno-kanban create "Add user profile page" --status todo --tags frontend ui
+
+# Using --body flag (both formats work)
+juno-kanban create --body "Implement OAuth" --tags security backend
+
+# Optional title merged into body as: title:{title}\n\n{body}
+juno-kanban create --title "OAuth" --body "Implement provider callback validation"
+
+# Read shell-sensitive markdown exactly from a UTF-8 file or stdin
+juno-kanban create --body-file task.md --status todo --tags feature backend
+cat task.md | juno-kanban create --body-file -
+
+# Why file/stdin matters: shells expand unquoted backticks and $() before
+# juno-kanban can inspect argv. For quoted literals that survive parsing,
+# create rejects inline backticks, $(), heredoc-like <<, and multiline bodies
+# and asks you to use --body-file PATH or --body-file - instead.
+
+# Trailing quoted body after list flags is supported
+juno-kanban create --status todo --related-tasks ABC123 "Add integration tests for callback flow"
+```
+
+### Searching & Listing
+
+```bash
+# List recent tasks (sorted by last modified)
+juno-kanban list --limit 10
+
+# Search by status
+juno-kanban search --status in_progress
+
+# Search by tags
+juno-kanban search --tags backend --tags security
+
+# Aggregate tag counts across all tasks
+juno-kanban tags
+
+# Aggregate tag counts only for active work
+juno-kanban tags --status todo,in_progress --format json
+juno-kanban tags --status todo in_progress --format table
+
+# Search open tasks (no agent response)
+juno-kanban search --open
+
+# Search recent tasks
+juno-kanban search --recent --limit 5
+
+# Control search sort order by last_modified
+juno-kanban search --status todo --sort asc --limit 5
+
+# Multiple conditions (AND logic)
+juno-kanban search --status todo --tags backend --limit 3
+```
+
+`--sort asc|desc` uses one shared contract across `list`, `search`, and `ready`:
+- `asc` = oldest `last_modified` first
+- `desc` = newest `last_modified` first
+- equal timestamps use task `id` as deterministic tie-breaker
+- default `list` behavior preserves open-before-closed status priority (`backlog/todo/in_progress` before `done/archive`)
+- when `list` or `ready` receives `--status ...`, task groups follow the provided status order, then `--sort` applies within each status group
+
+### Updating Tasks
+
+```bash
+# Update status (positional or --id both supported)
+juno-kanban update ABC123 --status in_progress
+juno-kanban update --id ABC123 --status in_progress
+
+# Add agent response
+juno-kanban update --id ABC123 --response "Working on OAuth flow"
+
+# Replace body/response from files without shell quoting risks
+juno-kanban update ABC123 --body-file task.md
+juno-kanban update ABC123 --response-file response.md
+
+# Set commit hash
+juno-kanban update --id ABC123 --commit abc123def
+
+# Update tags
+juno-kanban update ABC123 --tags urgent backend security
+```
+
+### Mark Command (Streamlined Workflow)
+
+```bash
+# Mark with required response
+juno-kanban mark todo ABC123 --response "Ready to start"
+
+# Mark as done with commit (recommended)
+juno-kanban mark done --id ABC123 --response "Feature completed" --commit abc123
+
+# Read response from a file or stdin, preserving code fences/backticks/$VARIABLES
+juno-kanban mark done --id ABC123 --response-file response.md --commit abc123
+cat response.md | juno-kanban mark done --id ABC123 --response-file -
+
+# Mark without commit (shows helpful reminder)
+juno-kanban mark done ABC123 --response "Bug fixed"
+# Output: Consider adding commit hash with --commit flag
+```
+
+### Dependency Management
+
+```bash
+# Create a task that's blocked by another
+juno-kanban create "Deploy to prod" --blocked-by ABC123
+
+# Or declare blockers via body markup (auto-parsed)
+juno-kanban create "Run integration tests [blocked_by]ABC123, DEF456[/blocked_by]"
+
+# Add/remove dependencies after creation
+juno-kanban deps add --id GHI789 --blocked-by ABC123 DEF456
+juno-kanban deps remove --id GHI789 --blocked-by ABC123
+
+# Shorthand add (action inferred when --blocked-by is present)
+juno-kanban deps --id GHI789 --blocked-by ABC123 DEF456
+
+# Query dependency info for a task
+juno-kanban deps ABC123
+juno-kanban deps --id ABC123
+# Returns: blockers (met/unmet), dependents, priority score
+
+# Find tasks ready to work on (all blockers resolved)
+juno-kanban ready
+juno-kanban ready --sort asc --limit 5                         # oldest ready tasks first
+juno-kanban ready --status backlog,in_progress --sort desc     # backlog group first, then in_progress
+juno-kanban ready --tag backend --sort desc                    # newest backend-ready tasks first
+
+# Get safe execution order (topological sort)
+juno-kanban order
+juno-kanban order --scores  # includes priority scores
+```
+
+#### Body Markup for Dependencies
+
+Dependencies and related tasks can be declared inline in the task body:
+
+```bash
+# Blockers (all synonyms are equivalent)
+[blocked_by]ABC123[/blocked_by]
+[block_by]ABC123[/block_by]
+[block]ABC123[/block]
+[parent_task]ABC123[/parent_task]
+
+# Multiple blockers (comma or space separated)
+[blocked_by]ABC123, DEF456[/blocked_by]
+
+# Related tasks (non-blocking references)
+[task_id]ABC123[/task_id]
+## ABC123
+##ABC123
+## ABC123 DEF456 ##
+
+# If a related ID is valid format but not found yet, it is kept as a
+# forward reference and a warning is emitted.
+```
+
+### Other Operations
+
+```bash
+# Get specific task(s) (includes dependency info)
+juno-kanban get ABC123
+juno-kanban get --id ABC123
+juno-kanban get ABC123 --compact              # related task details are ID-only
+juno-kanban get ABC123 DEF456 --format json   # ordered multi-ID lookup
+juno-kanban show ABC123 DEF456 --format json  # alias
+
+# Archive task (preserves data, sets status to archive)
+juno-kanban archive ABC123
+juno-kanban archive --id ABC123
+
+# Preview one sealed merge plan, review it, then apply that exact plan.
+juno-kanban merge /path/to/source/.juno_task --into ./.juno_task \
+  --dry-run --plan-file /tmp/kanban-merge-plan.json
+juno-kanban merge /path/to/source/.juno_task --into ./.juno_task \
+  --apply-plan /tmp/kanban-merge-plan.json \
+  --receipt-file /tmp/kanban-merge-receipt.json
+
+# Show help
+juno-kanban --help
+juno-kanban COMMAND --help
+```
+
+## Output Formats
+
+### NDJSON (Default)
+```bash
+juno-kanban search --status todo
+```
+```json
+{"id": "ABC123", "status": "todo", "body": "Fix bug", "tags": ["backend"]}
+{"id": "DEF456", "status": "todo", "body": "Add feature", "tags": ["frontend"]}
+```
+
+### JSON (Structured)
+```bash
+juno-kanban search --status todo --format json
+# also supported: juno-kanban --format json search --status todo
+```
+```json
+[
+  {"id": "ABC123", "status": "todo", "body": "Fix bug", "tags": ["backend"]},
+  {"id": "DEF456", "status": "todo", "body": "Add feature", "tags": ["frontend"]}
+]
+```
+
+### XML
+```bash
+juno-kanban search --status todo --format xml
+```
+
+### Table (Human-readable)
+```bash
+juno-kanban search --status todo --format table
+
+# tags command renders markdown table output in table mode
+juno-kanban tags --status todo,in_progress --format table
+```
+
+## Shell Integration
+
+### jq Compatibility
+
+Perfect integration with `jq` for data processing:
+
+```bash
+# Extract task IDs
+juno-kanban list | jq -r '.id'
+
+# Filter by specific criteria
+juno-kanban list | jq 'select(.status == "todo")'
+
+# Count tasks by status
+juno-kanban list | jq -r '.status' | sort | uniq -c
+
+# Get tasks with specific tags
+juno-kanban list | jq 'select(.feature_tags[]? == "backend")'
+
+# Clean data output (suppress summary)
+juno-kanban list 2>/dev/null | jq '.'
+```
+
+### Automation Examples
+
+```bash
+# Daily standup - get your current work
+juno-kanban search --status in_progress | jq -r '.body'
+
+# Review completed work with commits
+juno-kanban search --status done | jq -r '"✅ \(.body) (\(.commit_hash // "no commit"))"'
+
+# Find urgent tasks
+juno-kanban search --tags urgent | jq -r '"⚠️  \(.body)"'
+
+# Git hook integration
+git log -1 --format="%H" | xargs -I {} juno-kanban search --commit {}
+```
+
+## Configuration
+
+Configuration file: `.juno_task/tasks/config.json`
+
+### Status Workflow
+
+```json
+{
+  "status_values": ["backlog", "todo", "in_progress", "review", "done", "archive"],
+  "default_status": "backlog",
+  "enforce_transitions": true,
+  "allowed_transitions": {
+    "backlog": ["todo", "archive"],
+    "todo": ["in_progress", "archive"],
+    "in_progress": ["review", "done", "archive"],
+    "review": ["todo", "done", "archive"],
+    "done": ["archive"],
+    "archive": []
+  }
+}
+```
+
+### Tag Validation
+
+```json
+{
+  "tag_pattern": "^[a-zA-Z0-9_-]+$",
+  "max_tags_per_task": 10,
+  "allowed_tags": ["frontend", "backend", "security", "urgent", "bug", "feature"]
+}
+```
+
+### Search Settings
+
+```json
+{
+  "storage": {"base_path": ".juno_task/tasks", "file_pattern": "*/*.md"},
+  "custom_fields": {"due_date": {"type": "date"}},
+  "search": {"default_limit": 5}
+}
+```
+
+## Task Schema
+
+Each task is stored in safe YAML front matter plus marker-delimited Markdown body/response. CLI renderers expose these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | 6-character alphanumeric ID (e.g., "A1b2C3") |
+| `status` | string | Current status (configurable workflow) |
+| `body` | string | Task description (supports multiline, code, HTML) |
+| `commit_hash` | string\|null | Git commit hash when completed |
+| `agent_response` | string | AI/human response or notes |
+| `created_date` | string | Creation timestamp (YYYY-MM-DD HH:MM:SS) |
+| `last_modified` | string | Last modification timestamp |
+| `feature_tags` | string[] | Categorization tags |
+| `blocked_by` | string[]\|null | Task IDs that must complete before this task |
+| `related_tasks` | string[]\|null | Non-blocking task references |
+
+### Example Task
+
+```json
+{
+  "id": "A1b2C3",
+  "status": "done",
+  "body": "Implement OAuth2 authentication flow\n\n```python\n@app.route('/auth')\ndef authenticate():\n    return oauth.redirect()\n```",
+  "commit_hash": "abc123def456",
+  "agent_response": "Implemented OAuth2 with Google provider. Added tests and documentation.",
+  "created_date": "2025-10-22 14:30:00",
+  "last_modified": "2025-10-22 16:45:30",
+  "feature_tags": ["backend", "security", "oauth"],
+  "blocked_by": ["X4y5Z6"],
+  "related_tasks": ["D7e8F9"]
+}
+```
+
+## Error Handling
+
+### Educational Error Messages
+
+```bash
+# Invalid tag format
+juno-kanban create "Task" --tags "frontend v1"
+```
+```
+Validation error: Invalid tag format: 'frontend v1'
+
+Tags can only contain letters, numbers, underscores (_), and hyphens (-).
+Found: spaces (not allowed)
+
+Correct format examples:
+  --tags backend urgent fix-auth
+  --tags frontend_v1 initial feature
+
+Did you mean: 'frontend_v1'?
+```
+
+### Status Transition Validation
+
+```bash
+# Invalid status transition
+juno-kanban update ABC123 --status done  # (current: backlog)
+```
+```
+Cannot transition from 'backlog' to 'done'.
+Allowed transitions from 'backlog': todo, in_progress, archive
+
+Use: juno-kanban update ABC123 --status todo
+```
+
+## Performance
+
+### Benchmarks
+
+| Operation | Small (100 tasks) | Large (10,000 tasks) | Notes |
+|-----------|-------------------|---------------------|-------|
+| Create task | ~5ms | ~5ms | Constant time |
+| Existing-ID get | p95 <75ms | Warm canonical path lookup |
+| Cached list/search | p95 <200/250ms | 140k synthetic fixture |
+| List recent | ~25ms | ~100ms | Sorted by timestamp |
+
+### Large File Handling
+
+- **Streaming**: Memory-efficient reading of large files
+- **SQLite cache**: indexed broad queries without becoming source of truth
+- **Per-task files**: bounded Git blobs and isolated merge boundaries
+- **Indexing**: Fast ID lookups even with thousands of tasks
+
+## Examples
+
+### Development Workflow
+
+```bash
+# Morning planning
+juno-kanban create "Review pull requests" --tags review daily
+juno-kanban create "Fix authentication bug" --tags backend urgent --status todo
+
+# Start working
+juno-kanban mark in_progress -ID ABC123 --response "Investigating auth issue"
+
+# During development
+juno-kanban update ABC123 --response "Found root cause in JWT validation"
+
+# Complete work
+juno-kanban mark done -ID ABC123 --response "Fixed JWT expiry handling" --commit abc123
+
+# End of day review
+juno-kanban search --status done | jq -r '"✅ \(.body)"'
+```
+
+### Dependency-Aware Workflow
+
+```bash
+# Create a pipeline with dependencies
+juno-kanban create "Write unit tests" --tags backend testing --status todo
+# Returns ID: A1b2C3
+
+juno-kanban create "Implement feature" --blocked-by A1b2C3 --tags backend
+# Returns ID: D4e5F6
+
+juno-kanban create "Deploy to staging" --blocked-by D4e5F6 --tags devops
+# Returns ID: G7h8I9
+
+# See what's ready to work on
+juno-kanban ready --sort desc
+# Only A1b2C3 shows — the others are blocked (newest ready tasks first)
+
+# Get execution order with priority scores
+juno-kanban order --scores
+# A1b2C3 (score: 2) → D4e5F6 (score: 1) → G7h8I9 (score: 0)
+
+# Complete first task, check what's unblocked
+juno-kanban mark done -ID A1b2C3 --response "Tests written" --commit abc123
+juno-kanban ready --sort asc
+# Now D4e5F6 is ready (and asc sort keeps oldest ready tasks first)
+```
+
+### Team Coordination
+
+```bash
+# See what teammates are working on
+juno-kanban search --status in_progress | jq -r '"👤 \(.body) - \(.agent_response)"'
+
+# Find tasks needing review
+juno-kanban search --status review --tags urgent
+
+# Weekly retrospective
+juno-kanban search --status done | jq 'group_by(.commit_hash) | length'
+```
+
+### Git Integration
+
+```bash
+# Link completed tasks to commits
+git log --oneline | head -5 | while read commit message; do
+  echo "🔗 $commit: $(juno-kanban search --commit $commit | jq -r '.body // "No task linked"')"
+done
+
+# Pre-commit hook: ensure task exists
+if ! juno-kanban search --status in_progress | grep -q "$(git log -1 --format='%s')"; then
+  echo "⚠️  No in-progress task found for this commit"
+fi
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Command not found after installation:**
+```bash
+# Ensure pip installed to correct environment
+which pip
+pip show juno-kanban
+
+# Try reinstalling
+pip install -e . --force-reinstall
+```
+
+**Slow search performance:**
+```bash
+# Rebuild the disposable query cache at any time
+juno-kanban cache rebuild
+```
+
+**jq parsing errors:**
+```bash
+# Ensure you're using recent version (v1.3.0+)
+juno-kanban --version
+
+# Use stderr redirection if needed
+juno-kanban list 2>/dev/null | jq '.'
+```
+
+**Configuration issues:**
+```bash
+# Check config file location
+ls -la .juno_task/tasks/config.json
+
+# Validate JSON syntax
+cat .juno_task/tasks/config.json | jq '.'
+```
+
+### Getting Help
+
+- **CLI Help**: `juno-kanban --help` or `juno-kanban COMMAND --help`
+- **Issues**: [GitHub Issues](https://github.com/askbudi/juno-ledger/issues)
+- **Storage guide**: See [`docs/git-native-storage.md`](docs/git-native-storage.md)
+
+## Contributing
+
+To contribute, open an issue or pull request in `askbudi/juno-ledger`, add tests
+for behavioral changes, and run `python3 -m pytest -q` before submission.
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Changelog
+
+### v1.32.0 (2026-03-22)
+- Added `tags` command for tag-level workload aggregation (`juno-kanban tags`) with `--status` filtering and output formats (`json`, `table`, `xml`, `ndjson`)
+- Added explicit status-order contract for `list` and `ready` when `--status` is provided (e.g. `--status backlog,in_progress` preserves that group order)
+- Added `ready --status ...` filter support to match list/search filtering workflows
+- Added list/search parity summaries to `ready` (`Displayed: X of Y` + status breakdown; JSON summary object for `--format json`)
+- Added shared deterministic sort helpers so `list`, `search`, and `ready` all follow one `--sort asc|desc` contract with stable ID tie-breaks
+
+### v1.31.0 (2026-03-21)
+- Added `search --sort asc|desc` to control `last_modified` ordering in both ripgrep and Python fallback paths
+- Added command-level `search --format ...` support (in addition to global `--format`) and list-like result summaries for search output
+- Added multi-ID retrieval for `get` / `show` (`juno-kanban get ID1 ID2 ...`) with ordered JSON output
+- Added native shell completion generator (`juno-kanban completion [bash|zsh|fish]`) with parser-driven command/option completions
+
+### v1.30.0 (2026-03-20)
+- Added `##` related-task markup parsing (`##ID`, `## ID`, `## ID1 ID2 ##`) alongside `[task_id]...[/task_id]`
+- Preserved forward related-task references for valid-but-not-yet-existing IDs (with warning instead of silent drop)
+- Hardened local development wrapper resolution so `kanban.sh` prefers working-tree `src/` over stale site-packages
+- Hardened `scripts/bump_version.py` to use `max(local, PyPI)` as baseline and avoid accidental version rollback bumps
+
+### v1.29.0 (2026-03-04)
+- Added flexible task ID handling across key commands (`get`, `update`, `archive`, `mark`, `deps`)
+  - Supports positional `TASK_ID` and flag form (`--id` / `--ID`)
+- Added `deps` shorthand mode:
+  - `deps --id TASK_ID --blocked-by ID...` defaults to `add`
+  - `deps --id TASK_ID` defaults to dependency info (`show`)
+- Improved create parser resilience for agent workflows:
+  - trailing quoted body recovery after list flags like `--related-tasks` / `--blocked-by`
+  - maintained strict validation for true no-body cases
+
+### v1.28.0 (2026-03-03)
+- Added `create --title` support (`title:{title}\n\n{body}` merge format)
+- Added support for title-only task creation
+
+### v1.27.0 (2026-03-03)
+- Added `--id`/`--ID` task selection support for `get`/`show`
+- Expanded integration test coverage for ID parsing and create flows
+
+### v1.26.0 (2026-02-19)
+- Added task dependency system with `blocked_by` field and body markup parsing
+- Added `deps` command for querying/managing task dependencies
+- Added `ready` command for finding unblocked tasks (parallel execution support)
+- Added `order` command for topological sort of open tasks
+- Added dependency graph engine with cycle detection, priority scoring, and critical path analysis
+- Added `merge` command for combining task databases across directories
+- Added `related_tasks` field for non-blocking task references
+- Enhanced `get` command with dependency info and related task details
+- 350+ tests (pytest), 9 Python modules
+
+### v1.25.0 (2026-02-18)
+- Migrated into the Juno monorepo
+- Added comprehensive pytest test suite (210 tests, 46% coverage)
+- Cleaned git bloat (removed dist/, .venv_juno/, stale files)
+- Updated repository references for the monorepo migration
+- Fixed Python version badge and requirements to 3.8+
+
+### v1.3.0 (2025-10-23)
+- 🔧 Fixed jq compatibility by redirecting summary to stderr
+- 📝 Compacted documentation for better token efficiency
+- ✅ All automation workflows now function correctly
+
+### v1.2.0 (2025-10-22)
+- 📦 Added pip installation with dual entry points
+- 🔧 Fixed empty search results messaging
+- 📚 Consistent help across command names
+
+### v1.1.0 (2025-10-22)
+- 🗃️ Replaced delete with archive (data preservation)
+- ⚡ Added mark command for streamlined workflow
+- 📅 Simplified datetime format
+
+### v1.0.1 (2025-10-22)
+- ➕ Added missing CRUD operations
+- 📖 Improved help text and documentation
+- 🏷️ Enhanced tag validation with educational errors
+
+### v1.0.0 (2025-10-22)
+- 🎉 Initial release with full kanban functionality
+- 🔍 Indexed search through a disposable SQLite cache
+- 🏷️ Flexible tagging and status workflows
+
+---
+
+**Built with ❤️ for developers who live in the terminal**
